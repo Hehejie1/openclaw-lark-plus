@@ -1,6 +1,6 @@
 {
   "name": "@hehejie/openclaw-lark-plus",
-  "version": "2026.4.1-hehejie.1",
+  "version": "2026.4.1-hehejie.2",
   "description": "OpenClaw Lark/Feishu enhancement plugin with immediate progress cards",
   "type": "module",
   "exports": {

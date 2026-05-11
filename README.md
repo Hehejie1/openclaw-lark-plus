@@ -10,6 +10,8 @@
 
 If you want “send a message → instantly get a card → watch it update in-place”, use this plugin.
 
+中文简介：`@hehejie/openclaw-lark-plus` 基于官方 `@larksuite/openclaw-lark` 做了增强：你在飞书/Lark 发消息后会立刻收到一张“执行进度卡片”，OpenClaw 执行过程中会持续更新同一张卡片的关键节点（模型/工具/skill/报错）。
+
 ## Quick Start
 
 1. Install the plugin:
@@ -29,6 +31,10 @@ openclaw gateway restart
 Copy and send this as a single message to OpenClaw:
 
 > Please install and enable the OpenClaw Feishu progress-card plugin `@hehejie/openclaw-lark-plus` (plugin id: `openclaw-lark-plus`), ensure it is the only Lark/Feishu plugin enabled to avoid duplicate cards, then restart the OpenClaw gateway and confirm it is working.
+
+中文一键提示词（发给 OpenClaw）：
+
+> 请在我的环境中安装并启用 OpenClaw 飞书进度卡插件 `@hehejie/openclaw-lark-plus`（plugin id: `openclaw-lark-plus`），确保只启用这一套飞书/Lark 插件以避免重复发卡，然后重启 OpenClaw gateway 并确认生效。
 
 ## Features
 
