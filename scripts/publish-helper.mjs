@@ -21,6 +21,7 @@ const version = pkg.version;
 const forkRepo = process.env.OPENCLAW_LARK_PLUS_REPO || 'Hehejie1/openclaw-lark-plus';
 const upstreamRepo = 'larksuite/openclaw-lark';
 const gitTag = `v${version}`;
+const npmOtp = process.env.NPM_CONFIG_OTP || process.env.NPM_OTP;
 
 switch (command) {
   case 'check':
@@ -39,7 +40,7 @@ switch (command) {
   case 'publish:npm':
     runBuildAndTests();
     ensureNpmLogin(false);
-    run('npm', ['publish', '--access', 'public'], { stdio: 'inherit' });
+    run('npm', buildNpmPublishArgs(), { stdio: 'inherit' });
     break;
   case 'publish:github':
     ensureGitHubLogin(false);
@@ -60,7 +61,7 @@ switch (command) {
     ensureGitHubLogin(false);
     ensureForkRemote();
     ensureCleanGitState();
-    run('npm', ['publish', '--access', 'public'], { stdio: 'inherit' });
+    run('npm', buildNpmPublishArgs(), { stdio: 'inherit' });
     ensureGitTag();
     run('git', ['push', 'origin', 'HEAD'], { stdio: 'inherit' });
     run('git', ['push', 'origin', gitTag], { stdio: 'inherit' });
@@ -173,6 +174,14 @@ function ensureGitTag() {
 function runBuildAndTests() {
   run('corepack', ['pnpm', 'build'], { stdio: 'inherit' });
   run('corepack', ['pnpm', 'test'], { stdio: 'inherit' });
+}
+
+function buildNpmPublishArgs() {
+  const args = ['publish', '--access', 'public'];
+  if (npmOtp) {
+    args.push('--otp', npmOtp);
+  }
+  return args;
 }
 
 function printCommandStatus(commandName, args) {
