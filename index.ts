@@ -10,7 +10,6 @@
 
 import type { OpenClawPluginApi } from 'openclaw/plugin-sdk';
 import { emptyPluginConfigSchema } from 'openclaw/plugin-sdk';
-import { feishuPlugin } from './src/channel/plugin';
 import { LarkClient } from './src/core/lark-client';
 import { registerOapiTools } from './src/tools/oapi/index';
 import { registerFeishuMcpDocTools } from './src/tools/mcp/doc/index';
@@ -29,6 +28,13 @@ import { larkLogger } from './src/core/lark-logger';
 import { emitSecurityWarnings } from './src/core/security-check';
 import { recordToolUseEnd, recordToolUseStart } from './src/card/tool-use-trace-store';
 import { sanitizeParamsForLog } from './src/card/reasoning-utils';
+import { TaskProgressCardController } from './src/card/task-progress-controller';
+import {
+  bindProgressRun,
+  getProgressController,
+  registerProgressController,
+  unregisterProgressController,
+} from './src/card/task-progress-registry';
 
 const log = larkLogger('plugin');
 
@@ -102,13 +108,15 @@ export { isMessageExpired } from './src/messaging/inbound/dedup';
 // ---------------------------------------------------------------------------
 
 const plugin = {
-  id: 'openclaw-lark',
-  name: 'Feishu',
-  description: 'Lark/Feishu channel plugin with im/doc/wiki/drive/task/calendar tools',
+  id: 'openclaw-lark-plus',
+  name: 'Feishu Progress Plus',
+  description: 'Lark/Feishu enhancement plugin with immediate progress cards and key execution traces',
   configSchema: emptyPluginConfigSchema(),
   register(api: OpenClawPluginApi): void {
     LarkClient.setRuntime(api.runtime);
-    api.registerChannel({ plugin: feishuPlugin });
+    // The built-in OpenClaw Feishu channel remains the active messaging channel.
+    // This plugin augments the runtime with immediate progress cards, extra tools
+    // and diagnostics, but intentionally does not register another Feishu channel.
 
     // ========================================
 
@@ -127,7 +135,107 @@ const plugin = {
     // Register AskUserQuestion tool (interactive card-based user prompting)
     registerAskUserQuestionTool(api);
 
+    api.on('reply_dispatch', async (event, ctx) => {
+      const channel = event.originatingChannel ?? event.ctx?.OriginatingChannel;
+      if (channel !== 'feishu') return;
+
+      const sessionKey = event.sessionKey ?? event.ctx?.SessionKey;
+      if (!sessionKey) return;
+
+      let controller = getProgressController(sessionKey, event.runId);
+
+      if (!controller) {
+        const replyToMessageId =
+          event.ctx?.ReplyToIdFull ?? event.ctx?.ReplyToId ?? event.ctx?.MessageSidFull ?? event.ctx?.MessageSid;
+        const to = event.originatingTo ?? event.ctx?.OriginatingTo ?? event.ctx?.To;
+        const accountId =
+          event.ctx?.AccountId ??
+          (
+            ctx.cfg as {
+              channels?: {
+                feishu?: {
+                  defaultAccountId?: string;
+                };
+              };
+            }
+          ).channels?.feishu?.defaultAccountId;
+
+        if (!replyToMessageId || !to) {
+          log.warn('progress hook skipped due to missing routing context', {
+            sessionKey,
+            runId: event.runId,
+            channel,
+            hasTo: Boolean(to),
+            hasReplyTo: Boolean(replyToMessageId),
+          });
+        } else {
+          try {
+            controller = new TaskProgressCardController({
+              cfg: ctx.cfg,
+              sessionKey,
+              accountId,
+              chatId: to,
+              replyToMessageId,
+              replyInThread: resolveReplyInThread(event.ctx),
+            });
+            await controller.ensureCardCreated();
+            await controller.setExecution('analyzing', '正在分析用户请求');
+            await controller.pushNode('status', '已收到请求');
+            await controller.setExecution('planning', '正在准备执行');
+            registerProgressController(sessionKey, controller);
+            log.info('progress card created from reply_dispatch', {
+              sessionKey,
+              runId: event.runId,
+              to,
+              replyToMessageId,
+              accountId,
+            });
+          } catch (error) {
+            log.error(`progress card setup failed: ${String(error)}`);
+          }
+        }
+      }
+
+      bindProgressRun(event.sessionKey, event.runId);
+    });
+
+    api.on('agent_end', async (event, ctx) => {
+      const controller = getProgressController(ctx.sessionKey, ctx.runId);
+      if (!controller) return;
+
+      try {
+        if (event.success) {
+          await controller.markSummarizing();
+          await controller.markCompleted();
+        } else {
+          await controller.markFailed(event.error || '执行失败');
+        }
+      } finally {
+        unregisterProgressController(ctx.sessionKey, ctx.runId);
+        controller.dispose();
+      }
+    });
+
     api.on('before_tool_call', (event, ctx) => {
+      const controller = getProgressController(ctx.sessionKey, ctx.runId ?? event.runId);
+      void (async () => {
+        if (controller) {
+          if (event.toolName === 'Skill') {
+            const skillName = typeof event.params.name === 'string' ? event.params.name : 'unknown';
+            await controller.handleSkillStart(skillName);
+          }
+          if (event.toolName === 'TodoWrite') {
+            const todos = Array.isArray(event.params.todos) ? event.params.todos : [];
+            await controller.ingestPlannerTodos(todos);
+          }
+          if (event.toolName !== 'Skill') {
+            await controller.handleToolStart(event.toolName, event.params);
+          }
+        }
+      })().catch((error: unknown) => {
+        log.error(`progress before_tool_call hook failed: ${String(error)}`);
+      });
+
       recordToolUseStart({
         sessionKey: ctx.sessionKey,
         toolName: event.toolName,
@@ -141,6 +249,11 @@ const plugin = {
     });
 
     api.on('after_tool_call', (event, ctx) => {
+      const controller = getProgressController(ctx.sessionKey, ctx.runId ?? event.runId);
+      void controller?.handleToolFinish(event.toolName, event.error, event.result).catch((error: unknown) => {
+        log.error(`progress after_tool_call hook failed: ${String(error)}`);
+      });
+
       recordToolUseEnd({
         sessionKey: ctx.sessionKey,
         toolName: event.toolName,
@@ -159,6 +272,31 @@ const plugin = {
       } else {
         log.info(`tool done: ${event.toolName} session=${ctx.sessionKey ?? '-'} ok (${event.durationMs ?? 0}ms)`);
       }
+    });
+
+    api.on('llm_input', async (event, ctx) => {
+      const controller = getProgressController(ctx.sessionKey, ctx.runId ?? event.runId);
+      await controller?.handleModelCall(event.provider, event.model, event.prompt);
+    });
+
+    api.on('llm_output', async (event, ctx) => {
+      const controller = getProgressController(ctx.sessionKey, ctx.runId ?? event.runId);
+      await controller?.handleModelReply(event.provider, event.model, event.assistantTexts);
+    });
+
+    api.on('before_model_resolve', async (_event, ctx) => {
+      const controller = getProgressController(ctx.sessionKey, ctx.runId);
+      await controller?.pushNode('status', '开始选择大模型');
+    });
+
+    api.on('before_prompt_build', async (_event, ctx) => {
+      const controller = getProgressController(ctx.sessionKey, ctx.runId);
+      await controller?.pushNode('status', '开始构建提示词');
+    });
+
+    api.on('before_agent_reply', async (_event, ctx) => {
+      const controller = getProgressController(ctx.sessionKey, ctx.runId);
+      await controller?.pushNode('status', '开始生成回复');
     });
 
     // ---- Diagnostic commands ----
@@ -212,3 +350,12 @@ const plugin = {
 };
 
 export default plugin;
+
+function resolveReplyInThread(ctx: { ReplyThreading?: unknown } | undefined): boolean {
+  if (!ctx) return false;
+  const dynamicCtx = ctx as {
+    ReplyThreading?: { kind?: string } | null;
+    ReplyInThread?: unknown;
+  };
+  return dynamicCtx.ReplyThreading?.kind === 'thread' || dynamicCtx.ReplyInThread === true;
+}
