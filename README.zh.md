@@ -1,12 +1,34 @@
-# OpenClaw  Lark/飞书 插件
+# OpenClaw Lark/飞书 Plus 插件
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![npm version](https://img.shields.io/npm/v/@larksuite/openclaw-lark.svg)](https://www.npmjs.com/package/@larksuite/openclaw-lark)
+[![npm version](https://img.shields.io/npm/v/@hehejie/openclaw-lark-plus.svg)](https://www.npmjs.com/package/@hehejie/openclaw-lark-plus)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D22-blue.svg)](https://nodejs.org/)
 
 [English](./README.md) | 中文版
 
-这是 OpenClaw 的官方  Lark/飞书 插件，由 Lark/飞书开放平台团队开发和维护。它将你的 OpenClaw Agent 无缝对接到  Lark/飞书 工作区，赋予其直接读写消息、文档、多维表格、日历、任务等应用的能力。
+`@hehejie/openclaw-lark-plus` 基于官方 `@larksuite/openclaw-lark` 做了增强：在你发消息后，**立刻回一张“执行进度卡片”**，并在 OpenClaw 执行过程中持续更新同一张卡片的 **关键执行节点**（模型/工具/skill/报错）。
+
+如果你需要“发一句话立刻看到卡片，并持续更新”，就用这个插件。
+
+## 快速开始
+
+1. 安装插件：
+
+```bash
+openclaw plugins install @hehejie/openclaw-lark-plus
+```
+
+2. 重启 OpenClaw Gateway：
+
+```bash
+openclaw gateway restart
+```
+
+## 一句话提示词（发给 OpenClaw）
+
+复制下面这一句话直接发给 OpenClaw：
+
+> 请在我的环境中安装并启用 OpenClaw 飞书进度卡插件 `@hehejie/openclaw-lark-plus`（plugin id: `openclaw-lark-plus`），确保只启用这一套飞书/Lark 插件以避免重复发卡，然后重启 OpenClaw gateway 并确认生效。
 
 ## 特性
 

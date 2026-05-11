@@ -1,12 +1,34 @@
-# OpenClaw Lark/Feishu Plugin
+# OpenClaw Lark/Feishu Plus Plugin
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![npm version](https://img.shields.io/npm/v/@larksuite/openclaw-lark.svg)](https://www.npmjs.com/package/@larksuite/openclaw-lark)
+[![npm version](https://img.shields.io/npm/v/@hehejie/openclaw-lark-plus.svg)](https://www.npmjs.com/package/@hehejie/openclaw-lark-plus)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D22-blue.svg)](https://nodejs.org/)
 
 [中文版](./README.zh.md) | English
 
-This is the official Lark/Feishu plugin for OpenClaw, developed and maintained by the Lark/Feishu Open Platform team. It seamlessly connects your OpenClaw Agent to your Lark/Feishu workspace, enabling it to directly read from and write to messages, docs, bases, calendars, tasks, and more.
+`@hehejie/openclaw-lark-plus` is a fork of the official `@larksuite/openclaw-lark`, with one key enhancement: it can reply immediately with a **progress card**, then continuously update the same card with **key execution nodes** (model/tool/skill/error) while OpenClaw runs.
+
+If you want “send a message → instantly get a card → watch it update in-place”, use this plugin.
+
+## Quick Start
+
+1. Install the plugin:
+
+```bash
+openclaw plugins install @hehejie/openclaw-lark-plus
+```
+
+2. Restart OpenClaw Gateway:
+
+```bash
+openclaw gateway restart
+```
+
+## One-Line Prompt for OpenClaw
+
+Copy and send this as a single message to OpenClaw:
+
+> Please install and enable the OpenClaw Feishu progress-card plugin `@hehejie/openclaw-lark-plus` (plugin id: `openclaw-lark-plus`), ensure it is the only Lark/Feishu plugin enabled to avoid duplicate cards, then restart the OpenClaw gateway and confirm it is working.
 
 ## Features
 
@@ -22,8 +44,8 @@ This plugin provides comprehensive Lark/Feishu integration for OpenClaw, includi
 | ✅ Tasks | Manage tasks (create/query/update/complete), manage task lists, subtasks, and comments |
 
 Additionally, the plugin supports:
-- **📱 Interactive Cards**: Real-time status updates (Thinking/Generating/Complete), plus confirmation buttons for sensitive operations
-- **🌊 Streaming Responses**: Live streaming text directly within message cards
+- **📱 Progress Cards (Plus)**: Reply immediately with a card and update it in-place with key execution nodes (model/tool/skill/error)
+- **🌊 Streaming Responses**: Live streaming text directly within message cards (if enabled by the channel)
 - **🔒 Permission Policies**: Flexible access control policies for DMs and group chats
 - **⚙️ Advanced Group Configuration**: Per-group settings including allowlists, skill bindings, and custom system prompts
 
@@ -63,11 +85,11 @@ Before you start, make sure you have the following:
 
 ## Usage Guide
 
-[How to Use the Official Lark/Feishu Plugin for OpenClaw](https://bytedance.larkoffice.com/docx/MFK7dDFLFoVlOGxWCv5cTXKmnMh)
+[How to Use Lark/Feishu Channel for OpenClaw](https://bytedance.larkoffice.com/docx/MFK7dDFLFoVlOGxWCv5cTXKmnMh)
 
 ## Contributing
 
-Community contributions are welcome! If you find a bug or have feature suggestions, please submit an [Issue](https://github.com/larksuite/openclaw-larksuite/issues) or a [Pull Request](https://github.com/larksuite/openclaw-larksuite/pulls).
+Community contributions are welcome! If you find a bug or have feature suggestions, please submit an Issue or Pull Request in this repository.
 
 For major changes, we recommend discussing with us first via an Issue.
 
